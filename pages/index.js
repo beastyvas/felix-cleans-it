@@ -141,90 +141,94 @@ export default function Home() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (photos.length === 0) {
-      toast.error("Please upload at least 1 photo of the items to be removed");
-      return;
+  if (photos.length === 0) {
+    toast.error("Please upload at least 1 photo of the items to be removed");
+    return;
+  }
+
+  if (!formData.selectedDate) {
+    toast.error("Please select when you need this done");
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    // Upload photos to storage
+    const photoUrls = [];
+    for (const photo of photos) {
+      const fileExt = photo.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(7)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("quote-photos")
+        .upload(fileName, photo);
+
+      if (uploadError) throw uploadError;
+      photoUrls.push(fileName);
     }
 
-    if (!formData.selectedDate) {
-      toast.error("Please select when you need this done");
-      return;
-    }
+    // Format date
+    const requestedDate = formData.selectedDate.toISOString().split("T")[0];
 
-    setIsSubmitting(true);
+    // Generate a client-side ID so we can reference it without needing SELECT
+    const quoteId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    try {
-      // Upload photos to storage
-      const photoUrls = [];
-      for (const photo of photos) {
-        const fileExt = photo.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random()
-          .toString(36)
-          .substring(7)}.${fileExt}`;
+    // Create quote request (NO .select() to avoid RLS SELECT issues for anon)
+    const { error: quoteError } = await supabase.from("quote_requests").insert({
+      id: quoteId, // only works if your id column is uuid/text and allows insert; if not, remove this line
+      name: formData.name,
+      phone: formData.phone,
+      address: formData.address,
+      description: formData.description,
+      timeline: requestedDate,
+      photos: photoUrls,
+      status: "pending",
+    });
 
-        const { error: uploadError } = await supabase.storage
-          .from("quote-photos")
-          .upload(fileName, photo);
+    if (quoteError) throw quoteError;
 
-        if (uploadError) throw uploadError;
-        photoUrls.push(fileName);
-      }
+    // Send SMS notification to Felix
+    await fetch("/api/notify-quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: formData.name,
+        phone: formData.phone,
+        address: formData.address,
+        description: formData.description,
+        timeline: requestedDate,
+        quoteId, // now we have it without selecting
+      }),
+    });
 
-      // Format date
-      const requestedDate = formData.selectedDate.toISOString().split("T")[0];
+    toast.success("Quote request submitted! We'll text you shortly with pricing.");
 
-      // Create quote request
-      const { data: quoteData, error: quoteError } = await supabase
-        .from("quote_requests")
-        .insert({
-          name: formData.name,
-          phone: formData.phone,
-          address: formData.address,
-          description: formData.description,
-          timeline: requestedDate,
-          photos: photoUrls,
-          status: "pending",
-        })
-        .select()
-        .single();
+    // Reset form
+    setFormData({
+      name: "",
+      phone: "",
+      address: "",
+      description: "",
+      selectedDate: null,
+    });
+    setPhotos([]);
+    setPhotoPreviews([]);
+  } catch (error) {
+    console.error("Submit error:", error);
+    toast.error("Something went wrong. Please try again or call us directly.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
-      if (quoteError) throw quoteError;
-
-      // Send SMS notification to Felix
-      await fetch("/api/notify-quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          phone: formData.phone,
-          address: formData.address,
-          description: formData.description,
-          timeline: requestedDate,
-          quoteId: quoteData.id,
-        }),
-      });
-
-      toast.success("Quote request submitted! We'll text you shortly with pricing.");
-
-      // Reset form
-      setFormData({
-        name: "",
-        phone: "",
-        address: "",
-        description: "",
-        selectedDate: null,
-      });
-      setPhotos([]);
-      setPhotoPreviews([]);
-    } catch (error) {
-      console.error("Submit error:", error);
-      toast.error("Something went wrong. Please try again or call us directly.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const cleanPhone = settings.phone.replace(/\D/g, "");
 
