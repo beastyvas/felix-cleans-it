@@ -4,12 +4,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/utils/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-const Calendar = dynamic(() => import("react-calendar"), {
-  ssr: false,
-  loading: () => <div className="h-80 bg-gray-100 rounded-lg animate-pulse" />,
-});
 
 export default function Home() {
   // State
@@ -19,8 +13,6 @@ export default function Home() {
     hours: "Sat-Sun: 8AM-6PM | Mon-Fri: 4PM-8PM",
     serviceArea: "Las Vegas Valley, Summerlin, Enterprise, Henderson",
     logoUrl: null,
-
-    // NEW: About section (editable)
     aboutTitle: "About Felix Cleans It",
     aboutText:
       "Felix Cleans It LLC is family-owned and operated. I started this business to build something real for my son — honest work, reliable service, and a name you can trust. We show up on time, treat your property with respect, and get the job done right.",
@@ -41,7 +33,7 @@ export default function Home() {
     phone: "",
     address: "",
     description: "",
-    selectedDate: null,
+    selectedDate: "",
   });
   const [photos, setPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -54,7 +46,6 @@ export default function Home() {
 
   const fetchAllData = async () => {
     try {
-      // Settings
       const { data: settingsData } = await supabase
         .from("settings")
         .select("*")
@@ -68,8 +59,6 @@ export default function Home() {
           hours: settingsData.hours || prev.hours,
           serviceArea: settingsData.service_area || prev.serviceArea,
           logoUrl: settingsData.logo_url || prev.logoUrl,
-
-          // NEW: About fields (optional columns)
           aboutTitle: settingsData.about_title || prev.aboutTitle,
           aboutText: settingsData.about_text || prev.aboutText,
           aboutPhoto1: settingsData.about_photo_1 || prev.aboutPhoto1,
@@ -82,7 +71,6 @@ export default function Home() {
         }
       }
 
-      // Services
       const { data: servicesData } = await supabase
         .from("services")
         .select("*")
@@ -90,7 +78,6 @@ export default function Home() {
 
       if (servicesData) setServices(servicesData);
 
-      // Testimonials
       const { data: testimonialsData } = await supabase
         .from("testimonials")
         .select("*")
@@ -98,7 +85,6 @@ export default function Home() {
 
       if (testimonialsData) setTestimonials(testimonialsData);
 
-      // Gallery
       const { data: galleryData } = await supabase
         .from("gallery")
         .select("*")
@@ -115,7 +101,7 @@ export default function Home() {
     if (gallery.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentGalleryImage((prev) => (prev + 1) % gallery.length);
-    }, 4000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [gallery.length]);
 
@@ -125,12 +111,10 @@ export default function Home() {
   };
 
   const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files).slice(0, 3); // Max 3 photos
+    const files = Array.from(e.target.files).slice(0, 3);
     if (files.length === 0) return;
 
     setPhotos(files);
-
-    // Generate previews
     const previews = files.map((file) => URL.createObjectURL(file));
     setPhotoPreviews(previews);
   };
@@ -141,109 +125,126 @@ export default function Home() {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (photos.length === 0) {
-    toast.error("Please upload at least 1 photo of the items to be removed");
-    return;
-  }
-
-  if (!formData.selectedDate) {
-    toast.error("Please select when you need this done");
-    return;
-  }
-
-  setIsSubmitting(true);
-
-  try {
-    // Upload photos to storage
-    const photoUrls = [];
-    for (const photo of photos) {
-      const fileExt = photo.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(7)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("quote-photos")
-        .upload(fileName, photo);
-
-      if (uploadError) throw uploadError;
-      photoUrls.push(fileName);
+    if (photos.length === 0) {
+      toast.error("Please upload at least 1 photo");
+      return;
     }
 
-    // Format date
-    const requestedDate = formData.selectedDate.toISOString().split("T")[0];
+    if (!formData.selectedDate) {
+      toast.error("Please select a date");
+      return;
+    }
 
-    // Generate a client-side ID so we can reference it without needing SELECT
-    const quoteId =
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setIsSubmitting(true);
 
-    // Create quote request (NO .select() to avoid RLS SELECT issues for anon)
-    const { error: quoteError } = await supabase.from("quote_requests").insert({
-      id: quoteId, // only works if your id column is uuid/text and allows insert; if not, remove this line
-      name: formData.name,
-      phone: formData.phone,
-      address: formData.address,
-      description: formData.description,
-      timeline: requestedDate,
-      photos: photoUrls,
-      status: "pending",
-    });
+    try {
+      const photoUrls = [];
+      for (const photo of photos) {
+        const fileExt = photo.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(7)}.${fileExt}`;
 
-    if (quoteError) throw quoteError;
+        const { error: uploadError } = await supabase.storage
+          .from("quote-photos")
+          .upload(fileName, photo);
 
-    // Send SMS notification to Felix
-    await fetch("/api/notify-quote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+        if (uploadError) throw uploadError;
+        photoUrls.push(fileName);
+      }
+
+      const quoteId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      const { error: quoteError } = await supabase.from("quote_requests").insert({
+        id: quoteId,
         name: formData.name,
         phone: formData.phone,
         address: formData.address,
         description: formData.description,
-        timeline: requestedDate,
-        quoteId, // now we have it without selecting
-      }),
-    });
+        timeline: formData.selectedDate,
+        photos: photoUrls,
+        status: "pending",
+      });
 
-    toast.success("Quote request submitted! We'll text you shortly with pricing.");
+      if (quoteError) throw quoteError;
 
-    // Reset form
-    setFormData({
-      name: "",
-      phone: "",
-      address: "",
-      description: "",
-      selectedDate: null,
-    });
-    setPhotos([]);
-    setPhotoPreviews([]);
-  } catch (error) {
-    console.error("Submit error:", error);
-    toast.error("Something went wrong. Please try again or call us directly.");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      await fetch("/api/notify-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          description: formData.description,
+          timeline: formData.selectedDate,
+          quoteId,
+        }),
+      });
 
+      toast.success("Got it! We'll text you with pricing shortly.");
+
+      setFormData({
+        name: "",
+        phone: "",
+        address: "",
+        description: "",
+        selectedDate: "",
+      });
+      setPhotos([]);
+      setPhotoPreviews([]);
+    } catch (error) {
+      console.error("Submit error:", error);
+      toast.error("Something went wrong. Call us directly: " + settings.phone);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const cleanPhone = settings.phone.replace(/\D/g, "");
 
+  // Generate next 14 days for date picker
+  const getNextDays = () => {
+    const days = [];
+    for (let i = 0; i < 14; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      days.push(date);
+    }
+    return days;
+  };
+
+  const formatDateOption = (date) => {
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
   return (
-    <main className="min-h-screen bg-white text-gray-900">
-      <Toaster position="bottom-center" />
+    <main className="min-h-screen bg-amber-50">
+      <Toaster position="top-center" />
 
       {/* Promo Banner */}
       {showPromo && promoText && (
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 sticky top-0 z-50 shadow-lg">
+        <div className="bg-gradient-to-r from-orange-600 to-orange-700 text-white py-3 px-4 sticky top-0 z-50 shadow-lg">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <p className="text-sm font-bold flex-1 text-center">{promoText}</p>
             <button
               onClick={() => setShowPromo(false)}
-              className="text-white hover:text-blue-100 text-xl font-bold"
+              className="text-white hover:text-orange-100 text-xl font-bold"
               aria-label="Close promo"
             >
               ×
@@ -252,71 +253,81 @@ export default function Home() {
         </div>
       )}
 
-      {/* HERO SECTION - Better hierarchy + bigger logo */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            {/* Logo */}
+      {/* HERO - Centered with gradient background */}
+      <section
+        className="py-20 px-4 sm:px-6 lg:px-8"
+        style={{
+          background: "linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)",
+        }}
+      >
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Logo */}
+          <div className="inline-block bg-white rounded-full p-8 mb-8 shadow-xl">
             {settings.logoUrl ? (
-              <div className="mb-8">
-                <img
-                  src={getStorageUrl("business-assets", settings.logoUrl)}
-                  alt={settings.businessName}
-                  className="w-64 sm:w-72 md:w-80 h-auto mx-auto"
-                />
-              </div>
+              <img
+                src={getStorageUrl("business-assets", settings.logoUrl)}
+                alt={settings.businessName}
+                className="w-32 h-32 object-contain"
+              />
             ) : (
-              <div className="mb-6">
-                <h2 className="text-3xl font-bold text-gray-900">
-                  {settings.businessName}
-                </h2>
+              <div className="w-32 h-32 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-5xl font-black">
+                  {settings.businessName.charAt(0)}
+                </span>
               </div>
             )}
+          </div>
 
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-5 text-gray-900 tracking-tight">
-              Fast & Reliable Junk Removal
-            </h1>
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-orange-900 mb-6">
+            {settings.businessName}
+          </h1>
 
-            <p className="text-xl text-gray-700 mb-3 max-w-2xl mx-auto">
-              Family-owned business serving the Las Vegas Valley.
-            </p>
+          <p className="text-2xl sm:text-3xl text-orange-800 mb-4 font-semibold">
+            Family-Owned Junk Removal
+          </p>
 
-            <p className="text-base sm:text-lg text-gray-600 mb-10 max-w-xl mx-auto leading-relaxed">
-              Honest pricing. Quick response. Respectful service. Named after my son Felix — building a legacy with every job.
-            </p>
+          <p className="text-lg sm:text-xl text-orange-700 mb-12 max-w-2xl mx-auto leading-relaxed">
+            We show up on time, treat your property with respect, and get the
+            job done right. Building something real for my son Felix.
+          </p>
 
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-14">
-              <a
-                href="#quote"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition shadow-md"
-              >
-                Get Free Quote
-              </a>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <a
+              href="#quote"
+              className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-5 rounded-full font-bold text-xl shadow-lg transition transform hover:scale-105"
+            >
+              📋 Free Quote
+            </a>
+            <a
+              href={`sms:${cleanPhone}`}
+              className="bg-white hover:bg-orange-50 text-orange-900 px-10 py-5 rounded-full font-bold text-xl shadow-lg transition transform hover:scale-105"
+            >
+              📞 {settings.phone}
+            </a>
+          </div>
 
-              <a
-                href={`tel:${cleanPhone}`}
-                className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-8 py-4 rounded-xl font-semibold text-lg transition shadow-md"
-              >
-                Call/Text: {settings.phone}
-              </a>
+          {/* Info Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+              <div className="text-4xl mb-3">📍</div>
+              <h3 className="font-bold text-orange-900 mb-2">Service Area</h3>
+              <p className="text-orange-700 text-sm">{settings.serviceArea}</p>
             </div>
-
-            {/* Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto text-left">
-              <div className="border-l-4 border-blue-600 pl-4">
-                <p className="text-sm text-gray-500 font-semibold mb-1">SERVICE AREA</p>
-                <p className="text-gray-900 font-medium">{settings.serviceArea}</p>
-              </div>
-              <div className="border-l-4 border-blue-600 pl-4">
-                <p className="text-sm text-gray-500 font-semibold mb-1">HOURS</p>
-                <p className="text-gray-900 font-medium">{settings.hours}</p>
-              </div>
-              <div className="border-l-4 border-blue-600 pl-4">
-                <p className="text-sm text-gray-500 font-semibold mb-1">PRICING</p>
-                <p className="text-gray-900 font-medium">Free Estimates</p>
-              </div>
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+              <div className="text-4xl mb-3">⏰</div>
+              <h3 className="font-bold text-orange-900 mb-2">Hours</h3>
+              <p className="text-orange-700 text-sm whitespace-pre-line">
+                {settings.hours.replace(" | ", "\n")}
+              </p>
+            </div>
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+              <div className="text-4xl mb-3">💰</div>
+              <h3 className="font-bold text-orange-900 mb-2">Pricing</h3>
+              <p className="text-orange-700 text-sm">
+                Free Estimates
+                <br />
+                No Hidden Fees
+              </p>
             </div>
           </div>
         </div>
@@ -324,20 +335,30 @@ export default function Home() {
 
       {/* SERVICES */}
       {services.length > 0 && (
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-              What We Haul
-            </h2>
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl sm:text-5xl font-extrabold text-orange-900 mb-4">
+                What We Haul Away
+              </h2>
+              <p className="text-xl text-orange-700">
+                If it's junk to you, we'll take it
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {services.map((service) => (
-                <div key={service.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                  {service.icon && <div className="text-4xl mb-3">{service.icon}</div>}
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <div
+                  key={service.id}
+                  className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl p-8 text-center border-2 border-orange-200 hover:border-orange-400 transition hover:shadow-lg"
+                >
+                  {service.icon && (
+                    <div className="text-6xl mb-4">{service.icon}</div>
+                  )}
+                  <h3 className="font-bold text-xl text-orange-900 mb-2">
                     {service.title}
                   </h3>
-                  <p className="text-gray-600 text-sm leading-relaxed">
+                  <p className="text-orange-700 text-sm">
                     {service.description}
                   </p>
                 </div>
@@ -349,23 +370,31 @@ export default function Home() {
 
       {/* GALLERY */}
       {gallery.length > 0 && (
-        <section className="py-16 bg-white">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Before & After</h2>
-              <p className="text-gray-600">See the difference we make</p>
-            </div>
+        <section
+          className="py-20 px-4 sm:px-6 lg:px-8"
+          style={{
+            background: "linear-gradient(135deg, #fed7aa 0%, #fef3c7 100%)",
+          }}
+        >
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-orange-900 mb-12 text-center">
+              Before & After
+            </h2>
 
-            <div className="relative bg-gray-100 rounded-2xl overflow-hidden shadow-xl">
+            <div className="bg-white rounded-3xl overflow-hidden shadow-2xl">
               {gallery[currentGalleryImage]?.image_url && (
-                <div className="relative aspect-video">
-                  <img
-                    src={getStorageUrl("gallery", gallery[currentGalleryImage].image_url)}
-                    alt={gallery[currentGalleryImage].title || "Before and After"}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="relative">
+                  <div className="aspect-video bg-gradient-to-br from-orange-200 to-orange-300">
+                    <img
+                      src={getStorageUrl(
+                        "gallery",
+                        gallery[currentGalleryImage].image_url
+                      )}
+                      alt={gallery[currentGalleryImage].title || "Before and After"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
 
-                  {/* Title overlay */}
                   {gallery[currentGalleryImage].title && (
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
                       <p className="text-white text-xl font-bold">
@@ -373,45 +402,46 @@ export default function Home() {
                       </p>
                     </div>
                   )}
-                </div>
-              )}
 
-              {gallery.length > 1 && (
-                <>
-                  <button
-                    onClick={() =>
-                      setCurrentGalleryImage((prev) => (prev - 1 + gallery.length) % gallery.length)
-                    }
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-2xl text-gray-900 transition"
-                    aria-label="Previous image"
-                  >
-                    ←
-                  </button>
-                  <button
-                    onClick={() =>
-                      setCurrentGalleryImage((prev) => (prev + 1) % gallery.length)
-                    }
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-2xl text-gray-900 transition"
-                    aria-label="Next image"
-                  >
-                    →
-                  </button>
-                </>
+                  {gallery.length > 1 && (
+                    <>
+                      <button
+                        onClick={() =>
+                          setCurrentGalleryImage(
+                            (prev) => (prev - 1 + gallery.length) % gallery.length
+                          )
+                        }
+                        className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-2xl text-gray-900 transition"
+                        aria-label="Previous image"
+                      >
+                        ←
+                      </button>
+                      <button
+                        onClick={() =>
+                          setCurrentGalleryImage((prev) => (prev + 1) % gallery.length)
+                        }
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-2xl text-gray-900 transition"
+                        aria-label="Next image"
+                      >
+                        →
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
             {gallery.length > 1 && (
-              <div className="flex justify-center mt-6 gap-2">
+              <div className="flex justify-center gap-3 mt-6">
                 {gallery.map((_, idx) => (
-                  <button
+                  <div
                     key={idx}
                     onClick={() => setCurrentGalleryImage(idx)}
-                    className={`h-3 rounded-full transition-all ${
+                    className={`w-3 h-3 rounded-full cursor-pointer transition ${
                       idx === currentGalleryImage
-                        ? "bg-blue-600 w-10"
-                        : "bg-gray-300 w-3 hover:bg-gray-400"
+                        ? "bg-orange-600"
+                        : "bg-orange-300 hover:bg-orange-400"
                     }`}
-                    aria-label={`Go to image ${idx + 1}`}
                   />
                 ))}
               </div>
@@ -422,24 +452,31 @@ export default function Home() {
 
       {/* TESTIMONIALS */}
       {testimonials.length > 0 && (
-        <section className="py-16 bg-gray-50">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-              What Customers Say
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-orange-900 mb-12 text-center">
+              What People Say
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {testimonials.slice(0, 3).map((testimonial, idx) => (
-                <div key={idx} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <div
+                  key={idx}
+                  className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl p-6 shadow-lg border-2 border-orange-200"
+                >
                   <div className="flex mb-3">
                     {[...Array(testimonial.rating || 5)].map((_, i) => (
-                      <span key={i} className="text-yellow-400">★</span>
+                      <span key={i} className="text-orange-500 text-xl">
+                        ★
+                      </span>
                     ))}
                   </div>
-                  <p className="text-gray-700 text-sm mb-3 leading-relaxed">
+                  <p className="text-orange-800 text-sm mb-3 leading-relaxed italic">
                     "{testimonial.text}"
                   </p>
-                  <p className="text-gray-900 font-semibold">- {testimonial.name}</p>
+                  <p className="text-orange-900 font-semibold">
+                    — {testimonial.name}
+                  </p>
                 </div>
               ))}
             </div>
@@ -448,92 +485,119 @@ export default function Home() {
       )}
 
       {/* QUOTE FORM */}
-      <section className="py-16 bg-blue-600" id="quote">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">Get Your Free Quote</h2>
-            <p className="text-blue-100">Text us photos and we'll send you pricing</p>
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-orange-900" id="quote">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-white mb-4">
+              Get Your Free Quote
+            </h2>
+            <p className="text-xl text-orange-200">
+              We'll text you back with pricing in minutes
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl p-8 space-y-6 shadow-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white rounded-3xl p-8 sm:p-10 shadow-2xl"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Your Name *</label>
+                <label className="block text-sm font-bold text-orange-900 mb-2">
+                  Your Name
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
-                  placeholder="John Doe"
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full px-5 py-4 border-2 border-orange-200 rounded-2xl text-lg focus:border-orange-500 focus:outline-none transition"
+                  placeholder="John Smith"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number *</label>
+                <label className="block text-sm font-bold text-orange-900 mb-2">
+                  Phone
+                </label>
                 <input
                   type="tel"
                   required
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  className="w-full px-5 py-4 border-2 border-orange-200 rounded-2xl text-lg focus:border-orange-500 focus:outline-none transition"
                   placeholder="702-555-1234"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Service Address *</label>
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-orange-900 mb-2">
+                Address
+              </label>
               <input
                 type="text"
                 required
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900"
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                className="w-full px-5 py-4 border-2 border-orange-200 rounded-2xl text-lg focus:border-orange-500 focus:outline-none transition"
                 placeholder="123 Main St, Las Vegas, NV"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">What needs to be removed? *</label>
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-orange-900 mb-2">
+                What needs removed?
+              </label>
               <textarea
                 required
                 rows={4}
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 resize-none"
-                placeholder="Old furniture, appliances, yard waste, etc."
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                className="w-full px-5 py-4 border-2 border-orange-200 rounded-2xl text-lg focus:border-orange-500 focus:outline-none resize-none transition"
+                placeholder="Old furniture, appliances, yard waste..."
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">When do you need this done? *</label>
-              <div className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                <Calendar
-                  value={formData.selectedDate}
-                  onChange={(date) => setFormData({ ...formData, selectedDate: date })}
-                  minDate={new Date()}
-                  className="w-full"
-                />
-              </div>
-              {formData.selectedDate && (
-                <p className="text-sm text-gray-600 mt-2">
-                  Selected:{" "}
-                  {formData.selectedDate.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-              )}
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-orange-900 mb-2">
+                When do you need this done?
+              </label>
+              <select
+                required
+                value={formData.selectedDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, selectedDate: e.target.value })
+                }
+                className="w-full px-5 py-4 border-2 border-orange-200 rounded-2xl text-lg focus:border-orange-500 focus:outline-none transition appearance-none bg-white"
+              >
+                <option value="">Select a date...</option>
+                {getNextDays().map((date) => (
+                  <option
+                    key={date.toISOString()}
+                    value={date.toISOString().split("T")[0]}
+                  >
+                    {formatDateOption(date)} -{" "}
+                    {date.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Upload Photos (1-3 required) *
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-orange-900 mb-2">
+                Upload Photos
               </label>
-
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+              <div className="border-2 border-dashed border-orange-300 rounded-2xl p-10 text-center bg-orange-50 hover:bg-orange-100 transition cursor-pointer">
                 <input
                   type="file"
                   accept="image/*"
@@ -543,8 +607,13 @@ export default function Home() {
                   id="photo-upload"
                 />
                 <label htmlFor="photo-upload" className="cursor-pointer">
-                  <p className="text-gray-700 font-medium">Click to upload photos</p>
-                  <p className="text-sm text-gray-500">Max 3 photos</p>
+                  <p className="text-4xl mb-2">📷</p>
+                  <p className="text-orange-800 font-semibold">
+                    Click to upload (1-3 photos)
+                  </p>
+                  <p className="text-orange-600 text-sm mt-1">
+                    Helps us give accurate pricing
+                  </p>
                 </label>
               </div>
 
@@ -555,12 +624,12 @@ export default function Home() {
                       <img
                         src={preview}
                         alt={`Preview ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                        className="w-full h-32 object-cover rounded-2xl border-2 border-orange-200"
                       />
                       <button
                         type="button"
                         onClick={() => removePhoto(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold shadow-lg hover:bg-red-600 transition"
                         aria-label="Remove photo"
                       >
                         ×
@@ -573,18 +642,20 @@ export default function Home() {
 
             <button
               type="submit"
-              disabled={isSubmitting || photos.length === 0 || !formData.selectedDate}
-              className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition ${
+              disabled={
+                isSubmitting || photos.length === 0 || !formData.selectedDate
+              }
+              className={`w-full px-8 py-5 rounded-full font-bold text-xl shadow-lg transition transform ${
                 isSubmitting || photos.length === 0 || !formData.selectedDate
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-yellow-400 hover:bg-yellow-500 text-gray-900"
+                  : "bg-orange-600 hover:bg-orange-700 text-white hover:scale-105"
               }`}
             >
-              {isSubmitting ? "Sending..." : "Get Free Quote"}
+              {isSubmitting ? "Sending..." : "Send My Quote Request 🚀"}
             </button>
 
             {(photos.length === 0 || !formData.selectedDate) && (
-              <p className="text-center text-sm text-red-500">
+              <p className="text-center text-sm text-red-500 mt-3">
                 {!formData.selectedDate
                   ? "Please select a date"
                   : "Please upload at least 1 photo"}
@@ -594,35 +665,35 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ABOUT US - NEW */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+      {/* ABOUT */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-center">
             {/* Photos */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm">
+            <div className="md:col-span-2 grid grid-cols-2 gap-4">
+              <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 aspect-square border-2 border-orange-200">
                 {settings.aboutPhoto1 ? (
                   <img
                     src={getStorageUrl("business-assets", settings.aboutPhoto1)}
                     alt="About photo 1"
-                    className="w-full h-64 object-cover"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-64 flex items-center justify-center text-gray-400 text-sm">
+                  <div className="w-full h-full flex items-center justify-center text-orange-400 text-sm p-4 text-center">
                     Upload family photo (optional)
                   </div>
                 )}
               </div>
 
-              <div className="rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm">
+              <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-orange-100 to-amber-100 aspect-square border-2 border-orange-200">
                 {settings.aboutPhoto2 ? (
                   <img
                     src={getStorageUrl("business-assets", settings.aboutPhoto2)}
                     alt="About photo 2"
-                    className="w-full h-64 object-cover"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-64 flex items-center justify-center text-gray-400 text-sm">
+                  <div className="w-full h-full flex items-center justify-center text-orange-400 text-sm p-4 text-center">
                     Upload job photo (optional)
                   </div>
                 )}
@@ -630,191 +701,80 @@ export default function Home() {
             </div>
 
             {/* Text */}
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <div className="md:col-span-3">
+              <div className="mb-6">
+                <div className="inline-block bg-gradient-to-br from-orange-100 to-amber-100 rounded-full p-3 mb-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-3xl">
+                    👨‍👦
+                  </div>
+                </div>
+              </div>
+
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-orange-900 mb-4">
                 {settings.aboutTitle}
               </h2>
-              <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+              <p className="text-lg text-orange-800 leading-relaxed whitespace-pre-line mb-6">
                 {settings.aboutText}
               </p>
 
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <a
                   href={`tel:${cleanPhone}`}
-                  className="inline-flex items-center justify-center bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-semibold transition"
+                  className="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-full font-semibold transition transform hover:scale-105 shadow-lg"
                 >
                   Call {settings.phone}
                 </a>
                 <a
                   href="#quote"
-                  className="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition"
+                  className="inline-flex items-center justify-center bg-white hover:bg-orange-50 text-orange-900 px-6 py-3 rounded-full font-semibold transition transform hover:scale-105 shadow-lg border-2 border-orange-200"
                 >
                   Request a Quote
                 </a>
               </div>
-             
             </div>
           </div>
         </div>
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="bg-orange-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div>
               <h3 className="text-white font-bold text-lg mb-4">Contact</h3>
-              <p className="text-gray-300 mb-2">{settings.phone}</p>
-              <p className="text-gray-300">{settings.serviceArea}</p>
+              <p className="text-orange-200 mb-2 text-lg font-semibold">
+                {settings.phone}
+              </p>
+              <p className="text-orange-300">{settings.serviceArea}</p>
             </div>
             <div>
               <h3 className="text-white font-bold text-lg mb-4">Hours</h3>
-              <p className="text-gray-300">{settings.hours}</p>
+              <p className="text-orange-200 whitespace-pre-line">
+                {settings.hours.replace(" | ", "\n")}
+              </p>
             </div>
             <div>
               <h3 className="text-white font-bold text-lg mb-4">About</h3>
-              <p className="text-gray-300 text-sm">
-                Family-owned junk removal service. Building a legacy for my son Felix.
+              <p className="text-orange-200 text-sm">
+                Family-owned junk removal service. Building a legacy for my son
+                Felix.
               </p>
             </div>
           </div>
-          <div className="border-t border-gray-700 pt-8 text-center">
-            <p className="text-gray-400 text-sm mb-4">
-              © {new Date().getFullYear()} {settings.businessName}. All rights reserved.
+          <div className="border-t border-orange-700 pt-8 text-center">
+            <p className="text-xl font-bold mb-2">{settings.businessName}</p>
+            <p className="text-orange-400 text-sm mb-4">
+              © {new Date().getFullYear()} All rights reserved
             </p>
             <Link
               href="/login"
-              className="text-gray-500 hover:text-yellow-400 text-xs transition-colors"
+              className="text-orange-500 hover:text-orange-400 text-xs transition-colors"
             >
               Dashboard Login
             </Link>
           </div>
         </div>
       </footer>
-
-      {/* Calendar Styles - keep yours */}
-      <style jsx global>{`
-        .react-calendar {
-          border: none !important;
-          background: transparent !important;
-          font-family: inherit;
-          width: 100%;
-          color: #111827;
-        }
-
-        .react-calendar__navigation {
-          background: white !important;
-          margin-bottom: 16px !important;
-          border: 2px solid #e5e7eb !important;
-          border-radius: 12px !important;
-          display: flex !important;
-          height: 60px !important;
-        }
-
-        .react-calendar__navigation button {
-          color: #111827 !important;
-          font-weight: 700 !important;
-          font-size: 18px !important;
-          min-height: 56px !important;
-          padding: 16px !important;
-        }
-
-        .react-calendar__navigation button:hover:enabled {
-          background: #dbeafe !important;
-        }
-
-        .react-calendar__navigation__label {
-          font-size: 20px !important;
-          font-weight: 800 !important;
-          flex-grow: 2 !important;
-        }
-
-        .react-calendar__navigation__arrow {
-          font-size: 28px !important;
-          flex-grow: 0.5 !important;
-        }
-
-        .react-calendar__tile {
-          border: 2px solid #e5e7eb !important;
-          background: white !important;
-          padding: 16px 8px !important;
-          transition: all 0.2s !important;
-          color: #6b7280;
-          border-radius: 12px !important;
-          font-size: 16px !important;
-          font-weight: 600 !important;
-          margin: 4px !important;
-          min-height: 60px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-        }
-
-        .react-calendar__tile:hover:enabled {
-          background: #dbeafe !important;
-          border-color: #3b82f6 !important;
-          color: #1f2937;
-          transform: scale(1.05) !important;
-        }
-
-        .react-calendar__tile--now {
-          background: #fef3c7 !important;
-          font-weight: 800 !important;
-          color: #111827 !important;
-          border-color: #fbbf24 !important;
-          border-width: 3px !important;
-        }
-
-        .react-calendar__tile--active {
-          background: #3b82f6 !important;
-          color: white !important;
-          font-weight: 800 !important;
-          border-color: #2563eb !important;
-          border-width: 3px !important;
-          transform: scale(1.05) !important;
-        }
-
-        .react-calendar__tile:disabled {
-          background: #f9fafb !important;
-          color: #d1d5db !important;
-          border-color: #e5e7eb !important;
-          opacity: 0.5 !important;
-        }
-
-        .react-calendar__month-view__weekdays {
-          font-weight: 700 !important;
-          color: #111827 !important;
-          font-size: 14px !important;
-        }
-
-        .react-calendar__month-view__weekdays__weekday {
-          color: #111827 !important;
-          border-bottom: 2px solid #e5e7eb !important;
-          padding-bottom: 12px !important;
-          text-align: center !important;
-        }
-
-        @media (max-width: 640px) {
-          .react-calendar__navigation {
-            height: 70px !important;
-          }
-
-          .react-calendar__navigation button {
-            min-height: 66px !important;
-            font-size: 20px !important;
-          }
-
-          .react-calendar__navigation__arrow {
-            font-size: 32px !important;
-          }
-
-          .react-calendar__tile {
-            min-height: 70px !important;
-            font-size: 18px !important;
-            padding: 20px 8px !important;
-          }
-        }
-      `}</style>
     </main>
   );
 }

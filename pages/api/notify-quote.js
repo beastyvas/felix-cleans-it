@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const felixPhone = settings?.phone || process.env.FELIX_PHONE || "7025831039";
 
     // Use localhost for local testing, production URL otherwise
-    const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://felixcleansit.com";
 
     // Format the SMS message - NO URLS (TextBelt blocks unverified accounts)
     const message = `NEW QUOTE REQUEST

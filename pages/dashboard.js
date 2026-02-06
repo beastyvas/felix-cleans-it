@@ -8,7 +8,7 @@ export default function Dashboard() {
   // State
   const [ready, setReady] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Quote Requests
   const [quoteRequests, setQuoteRequests] = useState([]);
@@ -575,10 +575,10 @@ export default function Dashboard() {
   // Loading state
   if (!ready) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-900 text-sm">Loading dashboard...</p>
+          <div className="w-16 h-16 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-orange-900 text-sm font-semibold">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -598,27 +598,32 @@ export default function Dashboard() {
   const completedQuotes = quoteRequests.filter(q => q.status === "completed");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-yellow-50 flex">
-      {/* SIDEBAR */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r-2 border-blue-200 transition-all duration-300 flex flex-col`}>
+    <div className="min-h-screen bg-amber-50 flex relative">
+      {/* SIDEBAR - Mobile overlay, desktop sidebar */}
+      <aside className={`
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${sidebarOpen ? 'w-64' : 'lg:w-20'}
+        fixed lg:relative inset-y-0 left-0 z-50
+        bg-white border-r-2 border-orange-200 transition-all duration-300 flex flex-col shadow-lg
+      `}>
         {/* Logo/Header */}
-        <div className="p-6 border-b-2 border-blue-100">
+        <div className="p-6 border-b-2 border-orange-100">
           {sidebarOpen ? (
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-xl">🗑️</span>
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <span className="text-2xl">🗑️</span>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-black text-black">Felix</h1>
-                  <p className="text-xs text-gray-900">Dashboard</p>
+                  <h1 className="text-2xl font-black text-orange-900">Felix</h1>
+                  <p className="text-xs text-orange-700 font-semibold">Dashboard</p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex justify-center">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-500 rounded-lg flex items-center justify-center">
-                <span className="text-xl">🗑️</span>
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">🗑️</span>
               </div>
             </div>
           )}
@@ -630,10 +635,10 @@ export default function Dashboard() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all transform ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg'
-                  : 'text-gray-900 hover:bg-blue-50'
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg scale-105'
+                  : 'text-orange-900 hover:bg-orange-50 hover:scale-105'
               }`}
             >
               <span className="text-xl">{tab.icon}</span>
@@ -643,105 +648,127 @@ export default function Dashboard() {
         </nav>
 
         {/* Sign Out */}
-        <div className="p-4 border-t-2 border-blue-100">
+        <div className="p-4 border-t-2 border-orange-100">
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 font-medium transition"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-red-600 hover:bg-red-50 font-bold transition"
           >
             <span className="text-xl">🚪</span>
             {sidebarOpen && <span className="text-sm">Sign Out</span>}
           </button>
         </div>
 
-        {/* Toggle Button */}
+        {/* Toggle Button - Desktop */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition"
+          className="hidden lg:block absolute -right-3 top-20 w-6 h-6 bg-orange-500 text-white rounded-full items-center justify-center shadow-lg hover:bg-orange-600 transition font-bold"
         >
           {sidebarOpen ? '←' : '→'}
         </button>
       </aside>
 
+      {/* Mobile overlay backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-8 space-y-6">
+      <main className="flex-1 overflow-auto w-full">
+        {/* Mobile header with menu button */}
+        <div className="lg:hidden sticky top-0 z-30 bg-white border-b-2 border-orange-200 p-4 flex items-center justify-between shadow-md">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg"
+          >
+            <span className="text-xl">☰</span>
+          </button>
+          <h1 className="text-lg font-black text-orange-900">
+            {tabs.find(t => t.id === activeTab)?.label || 'Dashboard'}
+          </h1>
+          <div className="w-10" /> {/* Spacer for centering */}
+        </div>
+
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6">
           
           {/* OVERVIEW TAB */}
           {activeTab === "overview" && (
             <div className="space-y-6">
               {/* Welcome Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-8 text-white shadow-xl">
-                <h2 className="text-3xl font-bold mb-2">Welcome back! 👋</h2>
-                <p className="text-blue-100">Here's what's happening with your business today</p>
+              <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-3xl p-8 text-white shadow-xl">
+                <h2 className="text-3xl font-extrabold mb-2">Welcome back! 👋</h2>
+                <p className="text-orange-100">Here's what's happening with your business today</p>
               </div>
 
-              {/* Stats Grid - BIG and COLORFUL */}
+              {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-2xl p-6 border-2 border-yellow-200 shadow-lg hover:shadow-xl transition">
+                <div className="bg-white rounded-3xl p-6 border-2 border-orange-200 shadow-lg hover:shadow-xl transition hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                      <span className="text-2xl">⏳</span>
+                    <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center">
+                      <span className="text-3xl">⏳</span>
                     </div>
-                    <span className="text-xs font-semibold text-yellow-600 bg-yellow-100 px-3 py-1 rounded-full">PENDING</span>
+                    <span className="text-xs font-bold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">PENDING</span>
                   </div>
-                  <p className="text-4xl font-black text-gray-900 mb-2">{pendingQuotes.length}</p>
-                  <p className="text-sm text-gray-900">Quotes waiting for you</p>
+                  <p className="text-5xl font-black text-orange-900 mb-2">{pendingQuotes.length}</p>
+                  <p className="text-sm text-orange-700 font-semibold">Quotes waiting for you</p>
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 border-2 border-blue-200 shadow-lg hover:shadow-xl transition">
+                <div className="bg-white rounded-3xl p-6 border-2 border-orange-200 shadow-lg hover:shadow-xl transition hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <span className="text-2xl">✅</span>
+                    <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center">
+                      <span className="text-3xl">✅</span>
                     </div>
-                    <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded-full">CONFIRMED</span>
+                    <span className="text-xs font-bold text-orange-600 bg-orange-100 px-3 py-1 rounded-full">CONFIRMED</span>
                   </div>
-                  <p className="text-4xl font-black text-gray-900 mb-2">{confirmedQuotes.length}</p>
-                  <p className="text-sm text-gray-900">Jobs ready to go</p>
+                  <p className="text-5xl font-black text-orange-900 mb-2">{confirmedQuotes.length}</p>
+                  <p className="text-sm text-orange-700 font-semibold">Jobs ready to go</p>
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 border-2 border-green-200 shadow-lg hover:shadow-xl transition">
+                <div className="bg-white rounded-3xl p-6 border-2 border-orange-200 shadow-lg hover:shadow-xl transition hover:scale-105">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                      <span className="text-2xl">🎉</span>
+                    <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center">
+                      <span className="text-3xl">🎉</span>
                     </div>
-                    <span className="text-xs font-semibold text-green-600 bg-green-100 px-3 py-1 rounded-full">DONE</span>
+                    <span className="text-xs font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">DONE</span>
                   </div>
-                  <p className="text-4xl font-black text-gray-900 mb-2">{completedQuotes.length}</p>
-                  <p className="text-sm text-gray-900">Completed jobs</p>
+                  <p className="text-5xl font-black text-orange-900 mb-2">{completedQuotes.length}</p>
+                  <p className="text-sm text-orange-700 font-semibold">Completed jobs</p>
                 </div>
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-white rounded-2xl p-6 border-2 border-blue-100 shadow-lg">
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="bg-white rounded-3xl p-6 border-2 border-orange-200 shadow-lg">
+                <h3 className="text-xl font-extrabold text-orange-900 mb-4 flex items-center gap-2">
                   <span>📋</span> Recent Quote Requests
                 </h3>
                 <div className="space-y-3">
                   {quoteRequests.slice(0, 5).map(q => (
                     <div
                       key={q.id}
-                      className="flex items-center gap-4 p-4 bg-gradient-to-br from-blue-50 via-white to-yellow-50 rounded-xl hover:bg-blue-50 transition cursor-pointer"
+                      className="flex items-center gap-4 p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl hover:shadow-md transition cursor-pointer border-2 border-orange-100"
                       onClick={() => setActiveTab("quotes")}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
-                        q.status === "pending" ? "bg-yellow-100" :
-                        q.status === "confirmed" ? "bg-blue-100" :
-                        "bg-green-100"
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-md ${
+                        q.status === "pending" ? "bg-orange-200" :
+                        q.status === "confirmed" ? "bg-orange-300" :
+                        "bg-green-200"
                       }`}>
                         {q.status === "pending" ? "⏳" :
                          q.status === "confirmed" ? "✅" :
                          "🎉"}
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold text-gray-900">{q.name}</p>
-                        <p className="text-sm text-gray-900">{q.address}</p>
+                        <p className="font-bold text-orange-900">{q.name}</p>
+                        <p className="text-sm text-orange-700">{q.address}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-gray-900">{new Date(q.created_at).toLocaleDateString()}</p>
-                        <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                          q.status === "pending" ? "bg-yellow-100 text-yellow-700" :
-                          q.status === "confirmed" ? "bg-blue-100 text-blue-700" :
-                          "bg-green-100 text-green-700"
+                        <p className="text-xs text-orange-700 font-semibold">{new Date(q.created_at).toLocaleDateString()}</p>
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                          q.status === "pending" ? "bg-orange-200 text-orange-800" :
+                          q.status === "confirmed" ? "bg-orange-300 text-orange-900" :
+                          "bg-green-200 text-green-800"
                         }`}>
                           {q.status.toUpperCase()}
                         </span>
@@ -753,22 +780,22 @@ export default function Dashboard() {
             </div>
           )}
 
-        {/* QUOTE REQUESTS TAB - MOBILE FIRST */}
+        {/* QUOTE REQUESTS TAB */}
         {activeTab === "quotes" && (
           <section className="space-y-4">
-            <h2 className="text-3xl font-black text-black px-4">
+            <h2 className="text-3xl font-black text-orange-900 px-4">
               Quote Requests
             </h2>
 
-            {/* Filter tabs - MOBILE FRIENDLY */}
-            <div className="bg-white rounded-2xl border-2 border-blue-200 p-2 shadow-lg">
+            {/* Filter tabs */}
+            <div className="bg-white rounded-3xl border-2 border-orange-200 p-2 shadow-lg">
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setQuoteTab("pending")}
-                  className={`py-4 rounded-xl font-black text-base transition-all ${
+                  className={`py-4 rounded-2xl font-black text-base transition-all transform ${
                     quoteTab === "pending"
-                      ? "bg-gradient-to-r from-yellow-400 to-yellow-300 text-black shadow-lg"
-                      : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      ? "bg-gradient-to-r from-orange-400 to-orange-500 text-white shadow-lg scale-105"
+                      : "bg-orange-50 text-orange-700 hover:bg-orange-100"
                   }`}
                 >
                   <div className="text-2xl mb-1">⏳</div>
@@ -778,10 +805,10 @@ export default function Dashboard() {
                 
                 <button
                   onClick={() => setQuoteTab("confirmed")}
-                  className={`py-4 rounded-xl font-black text-base transition-all ${
+                  className={`py-4 rounded-2xl font-black text-base transition-all transform ${
                     quoteTab === "confirmed"
-                      ? "bg-gradient-to-r from-blue-500 to-blue-400 text-white shadow-lg"
-                      : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg scale-105"
+                      : "bg-orange-50 text-orange-700 hover:bg-orange-100"
                   }`}
                 >
                   <div className="text-2xl mb-1">✅</div>
@@ -791,10 +818,10 @@ export default function Dashboard() {
                 
                 <button
                   onClick={() => setQuoteTab("completed")}
-                  className={`py-4 rounded-xl font-black text-base transition-all ${
+                  className={`py-4 rounded-2xl font-black text-base transition-all transform ${
                     quoteTab === "completed"
-                      ? "bg-gradient-to-r from-green-500 to-green-400 text-white shadow-lg"
-                      : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                      ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg scale-105"
+                      : "bg-orange-50 text-orange-700 hover:bg-orange-100"
                   }`}
                 >
                   <div className="text-2xl mb-1">🎉</div>
@@ -812,135 +839,135 @@ export default function Dashboard() {
                 ? confirmedQuotes
                 : completedQuotes
               ).map(q => (
-                <div key={q.id} className="border-2 border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{q.name}</p>
-                      <p className="text-sm text-gray-900">{q.phone}</p>
-                      <p className="text-sm text-gray-900 mt-1">📍 {q.address}</p>
-                      <p className="text-sm text-gray-900 mt-2">{q.description}</p>
-                      <p className="text-xs text-gray-900 mt-2">
+                <div key={q.id} className="bg-white border-2 border-orange-200 rounded-3xl p-4 sm:p-6 shadow-lg">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="font-bold text-orange-900 text-base sm:text-lg">{q.name}</p>
+                      <p className="text-sm text-orange-700 font-semibold">{q.phone}</p>
+                      <p className="text-sm text-orange-700 mt-1">📍 {q.address}</p>
+                      <p className="text-sm text-orange-800 mt-2">{q.description}</p>
+                      <p className="text-xs text-orange-600 mt-2 font-semibold">
                         Requested for: {new Date(q.timeline).toLocaleDateString()}
                       </p>
                     </div>
-                  </div>
 
-                  {/* Photos */}
-                  {q.photos && q.photos.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-xs text-gray-900 mb-2">Customer Photos:</p>
-                      <div className="flex gap-2">
-                        {q.photos.map((photo, idx) => (
-                          <img
-                            key={idx}
-                            src={getStorageUrl("quote-photos", photo)}
-                            alt={`Photo ${idx + 1}`}
-                            onClick={() => setExpandedPhoto(getStorageUrl("quote-photos", photo))}
-                            className="w-20 h-20 object-cover rounded border-2 border-blue-200 cursor-zoom-in"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-2 mt-4">
-                    {q.status === "pending" && (
-                      <button
-                        onClick={() => updateQuoteStatus(q.id, "confirmed")}
-                        className="px-6 py-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
-                      >
-                        Confirm Job
-                      </button>
-                    )}
-                    {q.status === "confirmed" && (
-                      <button
-                        onClick={() => updateQuoteStatus(q.id, "completed")}
-                        className="px-6 py-4 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700"
-                      >
-                        Mark Completed
-                      </button>
-                    )}
-                    {q.status === "completed" && (
-                      <div className="w-full space-y-3 mt-4 bg-gradient-to-br from-blue-50 via-white to-yellow-50 border-2 border-blue-200 rounded-lg p-4">
-                        {/* Saved notes */}
-                        {q.savedNotes && q.savedNotes.length > 0 && (
-                          <div>
-                            <p className="text-xs font-semibold text-gray-900 mb-2">Saved Notes:</p>
-                            {q.savedNotes.map(n => (
-                              <p key={n.id} className="text-sm text-gray-900 mb-1">• {n.notes}</p>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Saved photos */}
-                        {q.savedPhotos && q.savedPhotos.length > 0 && (
-                          <div>
-                            <p className="text-xs font-semibold text-gray-900 mb-2">Saved Photos:</p>
-                            <div className="flex gap-2">
-                              {q.savedPhotos.map(p => (
-                                <img
-                                  key={p.id}
-                                  src={getStorageUrl("job-photos", p.photo_url)}
-                                  alt="Job photo"
-                                  onClick={() => setExpandedPhoto(getStorageUrl("job-photos", p.photo_url))}
-                                  className="w-20 h-20 object-cover rounded border-2 border-blue-200 cursor-zoom-in"
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Add new notes */}
-                        <div>
-                          <label className="text-xs text-gray-900">Add Job Notes:</label>
-                          <textarea
-                            value={q._localNotes || ""}
-                            onChange={e => updateLocalNotes(q.id, e.target.value)}
-                            rows={3}
-                            placeholder="What did you haul? Any issues? Payment details?"
-                            className="w-full mt-1 border border-gray-300 rounded-lg p-2 text-sm"
-                          />
+                    {/* Photos */}
+                    {q.photos && q.photos.length > 0 && (
+                      <div>
+                        <p className="text-xs text-orange-900 font-bold mb-2">Customer Photos:</p>
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                          {q.photos.map((photo, idx) => (
+                            <img
+                              key={idx}
+                              src={getStorageUrl("quote-photos", photo)}
+                              alt={`Photo ${idx + 1}`}
+                              onClick={() => setExpandedPhoto(getStorageUrl("quote-photos", photo))}
+                              className="w-20 h-20 flex-shrink-0 object-cover rounded-2xl border-2 border-orange-200 cursor-zoom-in hover:scale-105 transition"
+                            />
+                          ))}
                         </div>
+                      </div>
+                    )}
 
-                        {/* Add photos */}
-                        <div>
-                          <label className="text-xs text-gray-900">Add Job Photos:</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={e => handleLocalPhotos(q.id, e.target.files)}
-                            className="mt-1 text-sm"
-                          />
-                          {q._localPhotos && q._localPhotos.length > 0 && (
-                            <div className="flex gap-2 mt-2">
-                              {q._localPhotos.map((src, i) => (
-                                <img
-                                  key={i}
-                                  src={src}
-                                  alt={`Preview ${i + 1}`}
-                                  className="w-20 h-20 object-cover rounded border-2 border-blue-200"
-                                />
+                    {/* Actions */}
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                      {q.status === "pending" && (
+                        <button
+                          onClick={() => updateQuoteStatus(q.id, "confirmed")}
+                          className="w-full sm:w-auto px-6 py-3 sm:py-4 bg-orange-600 text-white text-sm font-bold rounded-2xl hover:bg-orange-700 shadow-lg transition transform active:scale-95"
+                        >
+                          Confirm Job
+                        </button>
+                      )}
+                      {q.status === "confirmed" && (
+                        <button
+                          onClick={() => updateQuoteStatus(q.id, "completed")}
+                          className="w-full sm:w-auto px-6 py-3 sm:py-4 bg-green-600 text-white text-sm font-bold rounded-2xl hover:bg-green-700 shadow-lg transition transform active:scale-95"
+                        >
+                          Mark Completed
+                        </button>
+                      )}
+                      {q.status === "completed" && (
+                        <div className="w-full space-y-3 mt-4 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-2xl p-4">
+                          {/* Saved notes */}
+                          {q.savedNotes && q.savedNotes.length > 0 && (
+                            <div>
+                              <p className="text-xs font-bold text-orange-900 mb-2">Saved Notes:</p>
+                              {q.savedNotes.map(n => (
+                                <p key={n.id} className="text-sm text-orange-800 mb-1">• {n.notes}</p>
                               ))}
                             </div>
                           )}
-                        </div>
 
-                        <button
-                          onClick={() => saveJobNotes(q.id)}
-                          className="px-6 py-4 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
-                        >
-                          Save Notes & Photos
-                        </button>
-                      </div>
-                    )}
-                    <button
-                      onClick={() => deleteQuote(q.id)}
-                      className="px-6 py-4 border border-gray-300 text-gray-900 text-sm font-medium rounded-lg hover:bg-gradient-to-br from-blue-50 via-white to-yellow-50"
-                    >
-                      Delete
-                    </button>
+                          {/* Saved photos */}
+                          {q.savedPhotos && q.savedPhotos.length > 0 && (
+                            <div>
+                              <p className="text-xs font-bold text-orange-900 mb-2">Saved Photos:</p>
+                              <div className="flex gap-2">
+                                {q.savedPhotos.map(p => (
+                                  <img
+                                    key={p.id}
+                                    src={getStorageUrl("job-photos", p.photo_url)}
+                                    alt="Job photo"
+                                    onClick={() => setExpandedPhoto(getStorageUrl("job-photos", p.photo_url))}
+                                    className="w-20 h-20 object-cover rounded-2xl border-2 border-orange-200 cursor-zoom-in hover:scale-105 transition"
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Add new notes */}
+                          <div>
+                            <label className="text-xs text-orange-900 font-bold">Add Job Notes:</label>
+                            <textarea
+                              value={q._localNotes || ""}
+                              onChange={e => updateLocalNotes(q.id, e.target.value)}
+                              rows={3}
+                              placeholder="What did you haul? Any issues? Payment details?"
+                              className="w-full mt-1 border-2 border-orange-200 rounded-2xl p-3 text-sm focus:border-orange-500 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Add photos */}
+                          <div>
+                            <label className="text-xs text-orange-900 font-bold">Add Job Photos:</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={e => handleLocalPhotos(q.id, e.target.files)}
+                              className="mt-1 text-sm"
+                            />
+                            {q._localPhotos && q._localPhotos.length > 0 && (
+                              <div className="flex gap-2 mt-2">
+                                {q._localPhotos.map((src, i) => (
+                                  <img
+                                    key={i}
+                                    src={src}
+                                    alt={`Preview ${i + 1}`}
+                                    className="w-20 h-20 object-cover rounded-2xl border-2 border-orange-200"
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => saveJobNotes(q.id)}
+                            className="px-6 py-4 bg-orange-900 text-white text-sm font-bold rounded-2xl hover:bg-orange-800 shadow-lg transition"
+                          >
+                            Save Notes & Photos
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => deleteQuote(q.id)}
+                        className="w-full sm:w-auto px-6 py-3 sm:py-4 border-2 border-orange-200 text-orange-900 text-sm font-bold rounded-2xl hover:bg-orange-50 transition active:scale-95"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -950,16 +977,16 @@ export default function Dashboard() {
 
         {/* SERVICES TAB */}
         {activeTab === "services" && (
-          <section className="bg-white border-2 border-blue-200 rounded-lg p-6">
-            <h2 className="text-2xl font-black text-black mb-4">
+          <section className="bg-white border-2 border-orange-200 rounded-3xl p-4 sm:p-6 shadow-lg">
+            <h2 className="text-xl sm:text-2xl font-black text-orange-900 mb-4">
               Services
             </h2>
 
             {/* Add service form */}
-            <form onSubmit={handleAddService} className="border-2 border-blue-200 rounded-lg p-4 mb-6 space-y-4">
+            <form onSubmit={handleAddService} className="border-2 border-orange-200 rounded-2xl p-4 mb-6 space-y-4 bg-gradient-to-br from-orange-50 to-amber-50">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Service Title
                   </label>
                   <input
@@ -969,11 +996,11 @@ export default function Dashboard() {
                       setNewService(prev => ({ ...prev, title: e.target.value }))
                     }
                     placeholder="e.g. Junk Removal"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Icon (emoji)
                   </label>
                   <input
@@ -983,12 +1010,12 @@ export default function Dashboard() {
                       setNewService(prev => ({ ...prev, icon: e.target.value }))
                     }
                     placeholder="🚛"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-base font-bold text-black mb-1">
+                <label className="block text-base font-bold text-orange-900 mb-1">
                   Description
                 </label>
                 <input
@@ -998,12 +1025,12 @@ export default function Dashboard() {
                     setNewService(prev => ({ ...prev, description: e.target.value }))
                   }
                   placeholder="What's included in this service?"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                  className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                 />
               </div>
               <button
                 type="submit"
-                className="px-6 py-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                className="px-6 py-4 bg-orange-600 text-white text-sm font-bold rounded-2xl hover:bg-orange-700 shadow-lg transition transform hover:scale-105"
               >
                 Add Service
               </button>
@@ -1014,18 +1041,18 @@ export default function Dashboard() {
               {services.map(s => (
                 <div
                   key={s.id}
-                  className="border-2 border-blue-200 rounded-lg p-4 flex items-start justify-between"
+                  className="border-2 border-orange-200 rounded-2xl p-4 flex items-start justify-between bg-gradient-to-br from-orange-50 to-amber-50"
                 >
                   <div className="flex gap-3">
                     {s.icon && <div className="text-3xl">{s.icon}</div>}
                     <div>
-                      <p className="font-semibold text-gray-900">{s.title}</p>
-                      <p className="text-sm text-gray-900">{s.description}</p>
+                      <p className="font-bold text-orange-900">{s.title}</p>
+                      <p className="text-sm text-orange-700">{s.description}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => handleDeleteService(s.id)}
-                    className="text-sm text-red-600 hover:text-red-700"
+                    className="text-sm text-red-600 hover:text-red-700 font-bold"
                   >
                     Remove
                   </button>
@@ -1037,16 +1064,16 @@ export default function Dashboard() {
 
         {/* GALLERY TAB */}
         {activeTab === "gallery" && (
-          <section className="bg-white border-2 border-blue-200 rounded-lg p-6">
-            <h2 className="text-2xl font-black text-black mb-4">
+          <section className="bg-white border-2 border-orange-200 rounded-3xl p-4 sm:p-6 shadow-lg">
+            <h2 className="text-xl sm:text-2xl font-black text-orange-900 mb-4">
               Before & After Gallery
             </h2>
 
             {/* Add gallery item */}
-            <form onSubmit={handleAddGalleryItem} className="border-2 border-blue-200 rounded-lg p-4 mb-6 space-y-4">
+            <form onSubmit={handleAddGalleryItem} className="border-2 border-orange-200 rounded-2xl p-4 mb-6 space-y-4 bg-gradient-to-br from-orange-50 to-amber-50">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Title
                   </label>
                   <input
@@ -1056,11 +1083,11 @@ export default function Dashboard() {
                       setNewGalleryItem(prev => ({ ...prev, title: e.target.value }))
                     }
                     placeholder="e.g. Garage Cleanout"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Category
                   </label>
                   <select
@@ -1068,7 +1095,7 @@ export default function Dashboard() {
                     onChange={e =>
                       setNewGalleryItem(prev => ({ ...prev, category: e.target.value }))
                     }
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base focus:border-orange-500 focus:outline-none"
                   >
                     <option value="before">Before</option>
                     <option value="after">After</option>
@@ -1076,7 +1103,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div>
-                <label className="block text-base font-bold text-black mb-1">
+                <label className="block text-base font-bold text-orange-900 mb-1">
                   Image
                 </label>
                 <input
@@ -1097,13 +1124,13 @@ export default function Dashboard() {
                   <img
                     src={newGalleryItem.imagePreview}
                     alt="Preview"
-                    className="w-32 h-32 object-cover rounded-lg mt-2 border-2 border-blue-200"
+                    className="w-32 h-32 object-cover rounded-2xl mt-2 border-2 border-orange-200"
                   />
                 )}
               </div>
               <button
                 type="submit"
-                className="px-6 py-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                className="px-6 py-4 bg-orange-600 text-white text-sm font-bold rounded-2xl hover:bg-orange-700 shadow-lg transition transform hover:scale-105"
               >
                 Add to Gallery
               </button>
@@ -1112,7 +1139,7 @@ export default function Dashboard() {
             {/* Gallery grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {gallery.map(g => (
-                <div key={g.id} className="border-2 border-blue-200 rounded-lg overflow-hidden">
+                <div key={g.id} className="border-2 border-orange-200 rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition">
                   {g.image_url && (
                     <img
                       src={getStorageUrl("gallery", g.image_url)}
@@ -1121,11 +1148,11 @@ export default function Dashboard() {
                     />
                   )}
                   <div className="p-3">
-                    <p className="font-semibold text-sm text-gray-900">{g.title}</p>
-                    <p className="text-xs text-gray-900">{g.category}</p>
+                    <p className="font-bold text-sm text-orange-900">{g.title}</p>
+                    <p className="text-xs text-orange-700">{g.category}</p>
                     <button
                       onClick={() => handleDeleteGalleryItem(g.id)}
-                      className="text-xs text-red-600 hover:text-red-700 mt-2"
+                      className="text-xs text-red-600 hover:text-red-700 mt-2 font-bold"
                     >
                       Delete
                     </button>
@@ -1138,16 +1165,16 @@ export default function Dashboard() {
 
         {/* REVIEWS TAB */}
         {activeTab === "reviews" && (
-          <section className="bg-white border-2 border-blue-200 rounded-lg p-6">
-            <h2 className="text-2xl font-black text-black mb-4">
+          <section className="bg-white border-2 border-orange-200 rounded-3xl p-4 sm:p-6 shadow-lg">
+            <h2 className="text-xl sm:text-2xl font-black text-orange-900 mb-4">
               Customer Reviews
             </h2>
 
             {/* Add testimonial */}
-            <form onSubmit={handleAddTestimonial} className="border-2 border-blue-200 rounded-lg p-4 mb-6 space-y-4">
+            <form onSubmit={handleAddTestimonial} className="border-2 border-orange-200 rounded-2xl p-4 mb-6 space-y-4 bg-gradient-to-br from-orange-50 to-amber-50">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Customer Name
                   </label>
                   <input
@@ -1157,11 +1184,11 @@ export default function Dashboard() {
                       setNewTestimonial(prev => ({ ...prev, name: e.target.value }))
                     }
                     placeholder="John D."
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Rating
                   </label>
                   <select
@@ -1169,7 +1196,7 @@ export default function Dashboard() {
                     onChange={e =>
                       setNewTestimonial(prev => ({ ...prev, rating: Number(e.target.value) }))
                     }
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base focus:border-orange-500 focus:outline-none"
                   >
                     {[5, 4, 3, 2, 1].map(r => (
                       <option key={r} value={r}>
@@ -1180,7 +1207,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div>
-                <label className="block text-base font-bold text-black mb-1">
+                <label className="block text-base font-bold text-orange-900 mb-1">
                   Review Text
                 </label>
                 <textarea
@@ -1190,11 +1217,11 @@ export default function Dashboard() {
                   }
                   rows={3}
                   placeholder="What did they say?"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                  className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-base font-bold text-black mb-1">
+                <label className="block text-base font-bold text-orange-900 mb-1">
                   Photo (optional)
                 </label>
                 <input
@@ -1215,13 +1242,13 @@ export default function Dashboard() {
                   <img
                     src={newTestimonial.imagePreview}
                     alt="Preview"
-                    className="w-20 h-20 object-cover rounded-lg mt-2 border-2 border-blue-200"
+                    className="w-20 h-20 object-cover rounded-2xl mt-2 border-2 border-orange-200"
                   />
                 )}
               </div>
               <button
                 type="submit"
-                className="px-6 py-4 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                className="px-6 py-4 bg-orange-600 text-white text-sm font-bold rounded-2xl hover:bg-orange-700 shadow-lg transition transform hover:scale-105"
               >
                 Add Review
               </button>
@@ -1232,20 +1259,20 @@ export default function Dashboard() {
               {testimonials.map(t => (
                 <div
                   key={t.id}
-                  className="border-2 border-blue-200 rounded-lg p-4 flex items-start justify-between"
+                  className="border-2 border-orange-200 rounded-2xl p-4 flex items-start justify-between bg-gradient-to-br from-orange-50 to-amber-50"
                 >
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-semibold text-gray-900">{t.name}</p>
-                      <span className="text-sm text-yellow-500">
+                      <p className="font-bold text-orange-900">{t.name}</p>
+                      <span className="text-sm text-orange-500">
                         {"★".repeat(t.rating)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-900">{t.text}</p>
+                    <p className="text-sm text-orange-800">{t.text}</p>
                   </div>
                   <button
                     onClick={() => handleDeleteTestimonial(t.id)}
-                    className="text-sm text-red-600 hover:text-red-700"
+                    className="text-sm text-red-600 hover:text-red-700 font-bold"
                   >
                     Remove
                   </button>
@@ -1257,17 +1284,17 @@ export default function Dashboard() {
 
         {/* SETTINGS TAB */}
         {activeTab === "settings" && (
-          <section className="bg-white border-2 border-blue-200 rounded-lg p-6">
-            <h2 className="text-2xl font-black text-black mb-4">
+          <section className="bg-white border-2 border-orange-200 rounded-3xl p-4 sm:p-6 shadow-lg">
+            <h2 className="text-xl sm:text-2xl font-black text-orange-900 mb-4">
               Settings
             </h2>
 
             <form onSubmit={handleSaveSettings} className="space-y-6">
               {/* Logo Upload */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Business Logo</h3>
+                <h3 className="text-sm font-bold text-orange-900 mb-3">Business Logo</h3>
                 <div className="flex items-start gap-4">
-                  <div className="w-32 h-32 bg-gray-100 border border-gray-300 rounded-lg overflow-hidden flex items-center justify-center">
+                  <div className="w-32 h-32 bg-gradient-to-br from-orange-100 to-amber-100 border-2 border-orange-200 rounded-2xl overflow-hidden flex items-center justify-center">
                     {logoPreview ? (
                       <img
                         src={logoPreview}
@@ -1283,12 +1310,12 @@ export default function Dashboard() {
                     ) : (
                       <div className="text-center">
                         <div className="text-3xl mb-2">🗑️</div>
-                        <p className="text-xs text-gray-900">No logo</p>
+                        <p className="text-xs text-orange-700 font-semibold">No logo</p>
                       </div>
                     )}
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm text-gray-900 mb-1">
+                    <label className="block text-sm text-orange-900 font-bold mb-1">
                       Upload New Logo
                     </label>
                     <input
@@ -1309,7 +1336,7 @@ export default function Dashboard() {
               {/* Business Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Business Name
                   </label>
                   <input
@@ -1318,11 +1345,11 @@ export default function Dashboard() {
                     onChange={e =>
                       setSettings(prev => ({ ...prev, businessName: e.target.value }))
                     }
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-base font-bold text-black mb-1">
+                  <label className="block text-base font-bold text-orange-900 mb-1">
                     Phone
                   </label>
                   <input
@@ -1331,13 +1358,13 @@ export default function Dashboard() {
                     onChange={e =>
                       setSettings(prev => ({ ...prev, phone: e.target.value }))
                     }
-                    className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                    className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-base font-bold text-black mb-1">
+                <label className="block text-base font-bold text-orange-900 mb-1">
                   Service Area
                 </label>
                 <input
@@ -1346,12 +1373,12 @@ export default function Dashboard() {
                   onChange={e =>
                     setSettings(prev => ({ ...prev, serviceArea: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                  className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 focus:border-orange-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-base font-bold text-black mb-1">
+                <label className="block text-base font-bold text-orange-900 mb-1">
                   Hours
                 </label>
                 <input
@@ -1360,13 +1387,13 @@ export default function Dashboard() {
                   onChange={e =>
                     setSettings(prev => ({ ...prev, hours: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                  className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 focus:border-orange-500 focus:outline-none"
                 />
               </div>
 
               {/* Promo Banner */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+              <div className="border-t-2 border-orange-200 pt-6">
+                <h3 className="text-sm font-bold text-orange-900 mb-3">
                   Promo Banner
                 </h3>
                 <label className="flex items-center gap-2 mb-3">
@@ -1376,9 +1403,9 @@ export default function Dashboard() {
                     onChange={e =>
                       setPromo(prev => ({ ...prev, enabled: e.target.checked }))
                     }
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                    className="w-4 h-4 rounded border-orange-300 text-orange-600"
                   />
-                  <span className="text-sm text-gray-900">
+                  <span className="text-sm text-orange-900 font-semibold">
                     Show promo banner on website
                   </span>
                 </label>
@@ -1387,19 +1414,19 @@ export default function Dashboard() {
                   value={promo.text}
                   onChange={e => setPromo(prev => ({ ...prev, text: e.target.value }))}
                   placeholder="e.g. Get 10 jobs stamped, 11th is free!"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                  className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                 />
               </div>
 
               {/* About Section */}
-              <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">
+              <div className="border-t-2 border-orange-200 pt-6">
+                <h3 className="text-lg font-extrabold text-orange-900 mb-4">
                   About Section
                 </h3>
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-base font-bold text-black mb-1">
+                    <label className="block text-base font-bold text-orange-900 mb-1">
                       About Title
                     </label>
                     <input
@@ -1409,12 +1436,12 @@ export default function Dashboard() {
                         setSettings(prev => ({ ...prev, aboutTitle: e.target.value }))
                       }
                       placeholder="About Felix Cleans It"
-                      className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                      className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-base font-bold text-black mb-1">
+                    <label className="block text-base font-bold text-orange-900 mb-1">
                       About Text
                     </label>
                     <textarea
@@ -1424,7 +1451,7 @@ export default function Dashboard() {
                         setSettings(prev => ({ ...prev, aboutText: e.target.value }))
                       }
                       placeholder="Tell your story..."
-                      className="w-full border border-gray-300 rounded-lg px-4 py-4 text-base text-gray-900 placeholder-gray-700"
+                      className="w-full border-2 border-orange-200 rounded-2xl px-4 py-4 text-base text-orange-900 placeholder-orange-400 focus:border-orange-500 focus:outline-none"
                     />
                   </div>
 
@@ -1432,10 +1459,10 @@ export default function Dashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Photo 1 */}
                     <div>
-                      <label className="block text-sm font-bold text-black mb-2">
+                      <label className="block text-sm font-bold text-orange-900 mb-2">
                         About Photo 1 (Family/Personal)
                       </label>
-                      <div className="w-full h-48 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden flex items-center justify-center mb-2">
+                      <div className="w-full h-48 bg-gradient-to-br from-orange-100 to-amber-100 border-2 border-orange-200 rounded-2xl overflow-hidden flex items-center justify-center mb-2">
                         {aboutPhoto1Preview ? (
                           <img
                             src={aboutPhoto1Preview}
@@ -1449,8 +1476,8 @@ export default function Dashboard() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="text-center text-gray-400">
-                            <p className="text-sm">No photo uploaded</p>
+                          <div className="text-center text-orange-400">
+                            <p className="text-sm font-semibold">No photo uploaded</p>
                           </div>
                         )}
                       </div>
@@ -1469,10 +1496,10 @@ export default function Dashboard() {
 
                     {/* Photo 2 */}
                     <div>
-                      <label className="block text-sm font-bold text-black mb-2">
+                      <label className="block text-sm font-bold text-orange-900 mb-2">
                         About Photo 2 (Job/Work)
                       </label>
-                      <div className="w-full h-48 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden flex items-center justify-center mb-2">
+                      <div className="w-full h-48 bg-gradient-to-br from-orange-100 to-amber-100 border-2 border-orange-200 rounded-2xl overflow-hidden flex items-center justify-center mb-2">
                         {aboutPhoto2Preview ? (
                           <img
                             src={aboutPhoto2Preview}
@@ -1486,8 +1513,8 @@ export default function Dashboard() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="text-center text-gray-400">
-                            <p className="text-sm">No photo uploaded</p>
+                          <div className="text-center text-orange-400">
+                            <p className="text-sm font-semibold">No photo uploaded</p>
                           </div>
                         )}
                       </div>
@@ -1510,7 +1537,7 @@ export default function Dashboard() {
               <div className="flex justify-end pt-4">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                  className="px-6 py-4 bg-orange-600 text-white text-sm font-bold rounded-2xl hover:bg-orange-700 shadow-lg transition transform hover:scale-105"
                 >
                   Save Settings
                 </button>
@@ -1529,14 +1556,14 @@ export default function Dashboard() {
           <div className="relative max-w-4xl w-full">
             <button
               onClick={() => setExpandedPhoto(null)}
-              className="absolute -top-10 right-0 text-white text-sm hover:text-gray-300"
+              className="absolute -top-10 right-0 text-white text-sm hover:text-gray-300 font-bold"
             >
               ✕ Close
             </button>
             <img
               src={expandedPhoto}
               alt="Expanded"
-              className="w-full max-h-[80vh] object-contain rounded-lg"
+              className="w-full max-h-[80vh] object-contain rounded-2xl"
             />
           </div>
         </div>
