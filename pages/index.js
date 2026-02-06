@@ -140,20 +140,38 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
-      const photoUrls = [];
-      for (const photo of photos) {
-        const fileExt = photo.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random()
-          .toString(36)
-          .substring(7)}.${fileExt}`;
+     // ✅ Validate files before upload
+const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+const maxSize = 5 * 1024 * 1024; // 5MB
 
-        const { error: uploadError } = await supabase.storage
-          .from("quote-photos")
-          .upload(fileName, photo);
+for (const photo of photos) {
+  if (!allowedTypes.includes(photo.type)) {
+    toast.error('Only JPEG, PNG, WEBP, and GIF images are allowed');
+    setIsSubmitting(false);
+    return;
+  }
+  
+  if (photo.size > maxSize) {
+    toast.error('Images must be under 5MB');
+    setIsSubmitting(false);
+    return;
+  }
+}
 
-        if (uploadError) throw uploadError;
-        photoUrls.push(fileName);
-      }
+const photoUrls = [];
+for (const photo of photos) {
+  const fileExt = photo.name.split(".").pop().toLowerCase();
+  const fileName = `${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(7)}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("quote-photos")
+    .upload(fileName, photo);
+
+  if (uploadError) throw uploadError;
+  photoUrls.push(fileName);
+}
 
       const quoteId =
         typeof crypto !== "undefined" && crypto.randomUUID

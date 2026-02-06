@@ -14,6 +14,7 @@
     "@supabase/supabase-js": "^2.55.0",
     "@tailwindcss/cli": "^4.1.8",
     "canvas-confetti": "^1.9.3",
+    "cookie": "^1.1.1",
     "micro": "^10.0.1",
     "next": "15.3.6",
     "raw-body": "^3.0.0",

@@ -1,3 +1,5 @@
+import { createServerClient } from '@supabase/ssr'
+import { parse } from 'cookie'
 import { supabaseServer } from '@/utils/supabaseServer'
 
 export default async function handler(req, res) {
@@ -6,7 +8,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch ALL data using service role (bypasses RLS)
+    // ✅ VERIFY AUTH FIRST
+    const cookies = parse(req.headers.cookie || '')
+    
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          get: (name) => cookies[name],
+          set: () => {},
+          remove: () => {},
+        },
+      }
+    )
+    
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+    
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    // ✅ Now fetch data with service role (user is verified)
     const [quotes, services, gallery, testimonials, settings] = await Promise.all([
       supabaseServer.from('quote_requests').select('*').order('created_at', { ascending: false }),
       supabaseServer.from('services').select('*').order('created_at', { ascending: true }),
@@ -41,6 +64,6 @@ export default async function handler(req, res) {
     })
   } catch (error) {
     console.error('Dashboard API error:', error)
-    return res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Internal server error' })
   }
 }

@@ -1,3 +1,5 @@
+import { createServerClient } from '@supabase/ssr'
+import { parse } from 'cookie'
 import { supabaseServer } from '@/utils/supabaseServer'
 
 export default async function handler(req, res) {
@@ -5,13 +7,39 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { payload } = req.body
-
   try {
-    console.log('🔧 Save settings API called')
-    console.log('📦 Payload:', payload)
-    console.log('🔑 Service role key exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-    console.log('🌐 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+    // ✅ VERIFY AUTH FIRST
+    const cookies = parse(req.headers.cookie || '')
+    
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          get: (name) => cookies[name],
+          set: () => {},
+          remove: () => {},
+        },
+      }
+    )
+    
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+    
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    const { payload } = req.body
+
+    // ✅ Input validation
+    if (!payload || typeof payload !== 'object') {
+      return res.status(400).json({ error: 'Invalid payload' })
+    }
+
+    // Ensure the owner_id matches the authenticated user
+    payload.owner_id = user.id
+
+    console.log('🔧 Save settings API called by user:', user.id)
     
     // Use service role to bypass RLS
     const { data, error } = await supabaseServer
@@ -27,10 +55,10 @@ export default async function handler(req, res) {
       throw error
     }
 
-    console.log('✅ Settings saved successfully:', data)
+    console.log('✅ Settings saved successfully')
     return res.status(200).json({ data })
   } catch (error) {
     console.error('💥 Save settings error:', error)
-    return res.status(500).json({ error: error.message })
+    return res.status(500).json({ error: 'Internal server error' })
   }
 }
