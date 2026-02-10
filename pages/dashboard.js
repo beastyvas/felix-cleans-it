@@ -78,58 +78,63 @@ export default function Dashboard() {
     fetchAllData();
   }, [router]);
 
-  const fetchAllData = async () => {
-    try {
-      // Check auth (still use client for auth check)
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        router.push("/login");
-        return;
-      }
-
-      // Fetch ALL data from API (uses service role, bypasses RLS)
-      const response = await fetch('/api/dashboard-data');
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch data');
-      }
-
-      // Set all the data
-      setQuoteRequests(data.quotes.map(q => ({
-        ...q,
-        _localNotes: "",
-        _localPhotos: []
-      })));
-
-      if (data.settings) {
-        setSettings({
-          businessName: data.settings.business_name || "Felix Cleans It LLC",
-          phone: data.settings.phone || "(702) 583-1039",
-          hours: data.settings.hours || "Sat-Sun: 8AM-6PM | Mon-Fri: 4PM-8PM",
-          serviceArea: data.settings.service_area || "Las Vegas Valley",
-          logoUrl: data.settings.logo_url,
-          aboutTitle: data.settings.about_title || "About Felix Cleans It",
-          aboutText: data.settings.about_text || "Felix Cleans It LLC is family-owned and operated. I started this business to build something real for my son — honest work, reliable service, and a name you can trust. We show up on time, treat your property with respect, and get the job done right.",
-          aboutPhoto1: data.settings.about_photo_1,
-          aboutPhoto2: data.settings.about_photo_2,
-        });
-
-        setPromo({
-          enabled: data.settings.promo_enabled ?? false,
-          text: data.settings.promo_text ?? "",
-        });
-      }
-
-      setServices(data.services);
-      setGallery(data.gallery);
-      setTestimonials(data.testimonials);
-      setReady(true);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      alert("Failed to load dashboard: " + error.message);
+ const fetchAllData = async () => {
+  try {
+    // Check auth (still use client for auth check)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      router.push("/login");
+      return;
     }
-  };
+
+    // ✅ Send auth token with the request
+    const response = await fetch('/api/dashboard-data', {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    });
+    
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch data');
+    }
+
+    // Set all the data
+    setQuoteRequests(data.quotes.map(q => ({
+      ...q,
+      _localNotes: "",
+      _localPhotos: []
+    })));
+
+    if (data.settings) {
+      setSettings({
+        businessName: data.settings.business_name || "Felix Cleans It LLC",
+        phone: data.settings.phone || "(702) 583-1039",
+        hours: data.settings.hours || "Sat-Sun: 8AM-6PM | Mon-Fri: 4PM-8PM",
+        serviceArea: data.settings.service_area || "Las Vegas Valley",
+        logoUrl: data.settings.logo_url,
+        aboutTitle: data.settings.about_title || "About Felix Cleans It",
+        aboutText: data.settings.about_text || "Felix Cleans It LLC is family-owned and operated. I started this business to build something real for my son — honest work, reliable service, and a name you can trust. We show up on time, treat your property with respect, and get the job done right.",
+        aboutPhoto1: data.settings.about_photo_1,
+        aboutPhoto2: data.settings.about_photo_2,
+      });
+
+      setPromo({
+        enabled: data.settings.promo_enabled ?? false,
+        text: data.settings.promo_text ?? "",
+      });
+    }
+
+    setServices(data.services);
+    setGallery(data.gallery);
+    setTestimonials(data.testimonials);
+    setReady(true);
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    alert("Failed to load dashboard: " + error.message);
+  }
+};
 
   const getStorageUrl = (bucket, path) => {
     if (!path) return null;
@@ -530,12 +535,23 @@ export default function Dashboard() {
         about_photo_2: aboutPhoto2Path,
       };
 
-      // Call API route (uses service role, bypasses RLS)
-      const response = await fetch('/api/save-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload })
-      });
+     // Get current session for auth token
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) {
+  alert("Session expired. Please log in again.");
+  router.push("/login");
+  return;
+}
+
+// Call API route (uses service role, bypasses RLS)
+const response = await fetch('/api/save-settings', {
+  method: 'POST',
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session.access_token}`
+  },
+  body: JSON.stringify({ payload })
+});
 
       const result = await response.json();
 

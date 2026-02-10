@@ -1,5 +1,3 @@
-import { createServerClient } from '@supabase/ssr'
-import { parse } from 'cookie'
 import { supabaseServer } from '@/utils/supabaseServer'
 
 export default async function handler(req, res) {
@@ -8,28 +6,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ✅ VERIFY AUTH FIRST
-    const cookies = parse(req.headers.cookie || '')
+    // ✅ Get the auth token from the request headers
+    const authHeader = req.headers.authorization
     
-    const supabaseAuth = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          get: (name) => cookies[name],
-          set: () => {},
-          remove: () => {},
-        },
-      }
-    )
-    
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
-    
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' })
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized - No token provided' })
     }
 
-    // ✅ Now fetch data with service role (user is verified)
+    const token = authHeader.replace('Bearer ', '')
+
+    // Verify the token with Supabase
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser(token)
+    
+    if (authError || !user) {
+      console.error('Auth error:', authError)
+      return res.status(401).json({ error: 'Unauthorized - Invalid token' })
+    }
+
+    console.log('✅ Authenticated user:', user.id)
+
+    // Now fetch data with service role (user is verified)
     const [quotes, services, gallery, testimonials, settings] = await Promise.all([
       supabaseServer.from('quote_requests').select('*').order('created_at', { ascending: false }),
       supabaseServer.from('services').select('*').order('created_at', { ascending: true }),
@@ -47,7 +43,6 @@ export default async function handler(req, res) {
         supabaseServer.from('job_photos').select('*').in('quote_request_id', quoteIds)
       ])
 
-      // Map notes and photos to quotes
       quotes.data = quotes.data.map(q => ({
         ...q,
         savedNotes: (notes.data || []).filter(n => n.quote_request_id === q.id),

@@ -8,6 +8,32 @@ export default async function handler(req, res) {
   const { name, phone, address, description, timeline, quoteId } = req.body;
 
   try {
+    // ✅ Input validation
+    if (!name || typeof name !== 'string' || name.length > 100) {
+      return res.status(400).json({ error: 'Invalid name' });
+    }
+
+    if (!phone || typeof phone !== 'string' || phone.length > 20) {
+      return res.status(400).json({ error: 'Invalid phone number' });
+    }
+
+    if (!address || typeof address !== 'string' || address.length > 200) {
+      return res.status(400).json({ error: 'Invalid address' });
+    }
+
+    if (!description || typeof description !== 'string' || description.length > 1000) {
+      return res.status(400).json({ error: 'Invalid description' });
+    }
+
+    if (!timeline || typeof timeline !== 'string') {
+      return res.status(400).json({ error: 'Invalid timeline' });
+    }
+
+    // Sanitize inputs (remove potential XSS)
+    const sanitizedName = name.replace(/[<>]/g, '');
+    const sanitizedAddress = address.replace(/[<>]/g, '');
+    const sanitizedDescription = description.replace(/[<>]/g, '');
+
     // Get Felix's phone number from settings
     const { data: settings } = await supabase
       .from("settings")
@@ -16,24 +42,20 @@ export default async function handler(req, res) {
 
     const felixPhone = settings?.phone || process.env.FELIX_PHONE || "7025831039";
 
-    // Use localhost for local testing, production URL otherwise
-    const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://felixcleansit.com";
-
     // Format the SMS message - NO URLS (TextBelt blocks unverified accounts)
     const message = `NEW QUOTE REQUEST
 
-Customer: ${name}
+Customer: ${sanitizedName}
 Phone: ${phone}
-Location: ${address}
+Location: ${sanitizedAddress}
 
-What: ${description}
+What: ${sanitizedDescription}
 
 When: ${timeline}
 
 Check your dashboard for photos and details`.trim();
 
     console.log("📱 Sending SMS to:", felixPhone);
-    console.log("🔑 TextBelt API Key:", process.env.TEXTBELT_API_KEY ? "✅ Found" : "❌ Missing");
 
     // Send SMS using TextBelt
     const smsResponse = await fetch("https://textbelt.com/text", {
@@ -62,7 +84,6 @@ Check your dashboard for photos and details`.trim();
     }
 
     console.log("✅ SMS sent successfully! TextID:", smsData.textId);
-    console.log("💰 Quota remaining:", smsData.quotaRemaining);
     
     return res.status(200).json({ 
       success: true, 
@@ -72,6 +93,6 @@ Check your dashboard for photos and details`.trim();
     });
   } catch (error) {
     console.error("❌ API Error:", error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 }

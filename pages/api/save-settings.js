@@ -1,5 +1,3 @@
-import { createServerClient } from '@supabase/ssr'
-import { parse } from 'cookie'
 import { supabaseServer } from '@/utils/supabaseServer'
 
 export default async function handler(req, res) {
@@ -8,25 +6,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ✅ VERIFY AUTH FIRST
-    const cookies = parse(req.headers.cookie || '')
+    // ✅ Get the auth token from the request headers
+    const authHeader = req.headers.authorization
     
-    const supabaseAuth = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        cookies: {
-          get: (name) => cookies[name],
-          set: () => {},
-          remove: () => {},
-        },
-      }
-    )
-    
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser()
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized - No token provided' })
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+
+    // Verify the token with Supabase
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser(token)
     
     if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' })
+      console.error('Auth error:', authError)
+      return res.status(401).json({ error: 'Unauthorized - Invalid token' })
     }
 
     const { payload } = req.body
